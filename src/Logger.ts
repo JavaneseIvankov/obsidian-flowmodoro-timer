@@ -123,7 +123,7 @@ export default class Logger {
             end: new Date().getTime(),
             session: ctx.duration,
             task: ctx.task,
-            finished: ctx.count == ctx.elapsed,
+            finished: ctx.elapsed >= ctx.count,
         }
     }
 

@@ -51,6 +51,7 @@ export type TimerState = {
     breakLen: number
     count: number
     duration: number
+    inOvertime: boolean
 }
 
 export type TimerStore = TimerState & {
@@ -93,6 +94,7 @@ export default class Timer implements Readable<TimerStore> {
             inSession: false,
             duration: plugin.getSettings().workLen,
             count,
+            inOvertime: false,
         }
 
         let store = writable(this.state)
@@ -102,7 +104,7 @@ export default class Timer implements Readable<TimerStore> {
         this.store = derived(store, ($state) => ({
             ...$state,
             remained: this.remain($state.count, $state.elapsed),
-            finished: $state.count == $state.elapsed,
+            finished: $state.elapsed >= $state.count,
         }))
 
         this.subscribe = this.store.subscribe
@@ -119,13 +121,15 @@ export default class Timer implements Readable<TimerStore> {
 
     private remain(count: number, elapsed: number): TimerRemained {
         let remained = count - elapsed
-        let min = Math.floor(remained / 60000)
-        let sec = Math.floor((remained % 60000) / 1000)
+        let isOvertime = remained < 0
+        let absRemained = Math.abs(remained)
+        let min = Math.floor(absRemained / 60000)
+        let sec = Math.floor((absRemained % 60000) / 1000)
         let minStr = min < 10 ? `0${min}` : min.toString()
         let secStr = sec < 10 ? `0${sec}` : sec.toString()
         return {
             millis: remained,
-            human: `${minStr} : ${secStr}`,
+            human: `${isOvertime ? '+ ' : ''}${minStr} : ${secStr}`,
         }
     }
 
@@ -134,22 +138,40 @@ export default class Timer implements Readable<TimerStore> {
     }
 
     private tick(t: number) {
-        let timeup: boolean = false
+        let justFinished: boolean = false
         let pause: boolean = false
         this.update((s) => {
             if (s.running) {
+                let prevElapsed = s.elapsed
                 s.elapsed += t
-                if (s.elapsed >= s.count) {
-                    s.elapsed = s.count
+                const enableOvertime = this.plugin.getSettings().enableOvertime
+                if (enableOvertime) {
+                    if (prevElapsed < s.count && s.elapsed >= s.count) {
+                        s.inOvertime = true
+                        justFinished = true
+                    }
+                } else {
+                    if (s.elapsed >= s.count) {
+                        s.elapsed = s.count
+                        justFinished = true
+                    }
                 }
-                timeup = s.elapsed >= s.count
             } else {
                 pause = true
             }
             return s
         })
-        if (!pause && timeup) {
-            this.timeup()
+        if (!pause && justFinished) {
+            const enableOvertime = this.plugin.getSettings().enableOvertime
+            if (enableOvertime) {
+                this.update((s) => {
+                    const ctx = this.createLogContext(s)
+                    this.notify(ctx, undefined, true)
+                    return s
+                })
+            } else {
+                this.timeup()
+            }
         }
     }
 
@@ -180,12 +202,12 @@ export default class Timer implements Readable<TimerStore> {
         return { ...state, task }
     }
 
-    private async processLog(ctx: LogContext) {
+    private async processLog(ctx: LogContext, playSound: boolean = true) {
         if (ctx.mode == 'WORK') {
             await this.plugin.tracker?.updateActual()
         }
         const logFile = await this.logger.log(ctx)
-        this.notify(ctx, logFile)
+        this.notify(ctx, logFile, playSound)
     }
 
     public start() {
@@ -225,10 +247,11 @@ export default class Timer implements Readable<TimerStore> {
         })
         state.startTime = null
         state.elapsed = 0
+        state.inOvertime = false
         return state
     }
 
-    private notify(state: TimerState, logFile: TFile | void) {
+    private notify(state: TimerState, logFile: TFile | void, playSound: boolean = true) {
         const emoji = state.mode == 'WORK' ? '🍅' : '🥤'
         const text = `${emoji} You have been ${
             state.mode === 'WORK' ? 'working' : 'breaking'
@@ -261,8 +284,21 @@ export default class Timer implements Readable<TimerStore> {
             new Notice(fragment)
         }
 
-        if (this.plugin.getSettings().notificationSound) {
+        if (playSound && this.plugin.getSettings().notificationSound) {
             this.playAudio()
+        }
+    }
+
+    public completeSession() {
+        let autostart = false
+        this.update((state) => {
+            const ctx = this.createLogContext(state)
+            this.processLog(ctx, false)
+            autostart = state.autostart
+            return this.endSession(state)
+        })
+        if (autostart) {
+            this.start()
         }
     }
 

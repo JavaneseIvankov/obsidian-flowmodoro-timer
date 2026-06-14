@@ -13,7 +13,7 @@ export let render: (content: string, el: HTMLElement) => void
 let extra: 'settings' | 'tasks' | 'close' = 'tasks'
 const offset = 440
 
-$: strokeOffset = $timer.remained.millis / $timer.count * offset
+$: strokeOffset = Math.max(0, $timer.remained.millis / $timer.count * offset)
 
 
 const start = () => {
@@ -51,7 +51,7 @@ const toggleExtra = (value: 'settings' | 'tasks') => {
 
 <!-- svelte-ignore a11y-click-events-have-key-events -->
 <!-- svelte-ignore a11y-no-static-element-interactions -->
-<div class="container">
+<div class="container" class:in-overtime={$timer.inOvertime}>
     <div class="main">
         <div class="timer">
             <div class="timer-display">
@@ -181,6 +181,32 @@ const toggleExtra = (value: 'settings' | 'tasks') => {
                     /><path d="M3 3v5h5" /></svg
                 >
             </span>
+            {#if $timer.inOvertime}
+                <span
+                    on:click={() => {
+                        timer.completeSession()
+                    }}
+                    class="control"
+                    title="Complete Session"
+                >
+                    <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        width="16"
+                        height="16"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        class="lucide lucide-check-check"
+                    >
+                        <path d="m12 15 2 2 4-4" />
+                        <path d="m4 12 2 2 4-4" />
+                        <path d="m14 4-2 2-4-4" />
+                    </svg>
+                </span>
+            {/if}
             <span
                 on:click={() => {
                     toggleExtra('settings')

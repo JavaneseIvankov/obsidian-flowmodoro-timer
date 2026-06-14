@@ -20,7 +20,7 @@ const updateBreakLen = (e: Event) => {
         if (value >= 0) {
             s.breakLen = value
         }
-        target.value = s.workLen.toString()
+        target.value = s.breakLen.toString()
         return s
     })
 }
