@@ -177,7 +177,11 @@ export default class Timer implements Readable<TimerStore> {
                     this.timeup()
                 }
             } else if (playChime) {
-                this.playAudio()
+                this.update((s) => {
+                    const ctx = this.createLogContext(s)
+                    this.notifyOvertime(ctx)
+                    return s
+                })
             }
         }
     }
@@ -308,6 +312,32 @@ export default class Timer implements Readable<TimerStore> {
         }
 
         if (playSound && this.plugin.getSettings().notificationSound) {
+            this.playAudio()
+        }
+    }
+
+    private notifyOvertime(state: TimerState) {
+        const emoji = state.mode == 'WORK' ? '🍅' : '🥤'
+        const totalMinutes = Math.floor(state.elapsed / 60000)
+        const overtimeMinutes = Math.max(0, totalMinutes - state.duration)
+        const text = `${emoji} You have been ${
+            state.mode === 'WORK' ? 'working' : 'breaking'
+        } for ${totalMinutes} minutes (including ${overtimeMinutes} minutes of overtime).`
+
+        if (this.plugin.getSettings().useSystemNotification) {
+            const Notification = (require('electron') as any).remote
+                .Notification
+            const sysNotification = new Notification({
+                title: 'Pomodoro Timer - Overtime',
+                body: text,
+                silent: true,
+            })
+            sysNotification.show()
+        } else {
+            new Notice(text)
+        }
+
+        if (this.plugin.getSettings().notificationSound) {
             this.playAudio()
         }
     }
