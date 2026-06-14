@@ -32,6 +32,7 @@ export interface Settings {
     useSystemNotification: boolean
     taskFormat: TaskFormat
     lowFps: boolean
+    enableOvertime: boolean
 }
 
 export default class PomodoroSettings extends PluginSettingTab {
@@ -53,6 +54,7 @@ export default class PomodoroSettings extends PluginSettingTab {
         useSystemNotification: false,
         taskFormat: 'TASKS',
         lowFps: false,
+        enableOvertime: true,
     }
 
     static settings: Writable<Settings> = writable(
@@ -120,6 +122,16 @@ export default class PomodoroSettings extends PluginSettingTab {
 					this.updateSettings({ lowFps: value })
 				})
 			})
+
+        new Setting(containerEl)
+            .setName('Enable Overtime')
+            .setDesc('Keep the timer running in overtime when the target duration is reached, and wait for manual completion.')
+            .addToggle((toggle) => {
+                toggle.setValue(this._settings.enableOvertime)
+                toggle.onChange((value) => {
+                    this.updateSettings({ enableOvertime: value })
+                })
+            })
 
         new Setting(containerEl).setHeading().setName('Notification')
 
