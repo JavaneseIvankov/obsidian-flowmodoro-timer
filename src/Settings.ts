@@ -33,6 +33,7 @@ export interface Settings {
     taskFormat: TaskFormat
     lowFps: boolean
     enableOvertime: boolean
+    overtimeChimeInterval: number
 }
 
 export default class PomodoroSettings extends PluginSettingTab {
@@ -55,6 +56,7 @@ export default class PomodoroSettings extends PluginSettingTab {
         taskFormat: 'TASKS',
         lowFps: false,
         enableOvertime: true,
+        overtimeChimeInterval: 1,
     }
 
     static settings: Writable<Settings> = writable(
@@ -129,9 +131,24 @@ export default class PomodoroSettings extends PluginSettingTab {
             .addToggle((toggle) => {
                 toggle.setValue(this._settings.enableOvertime)
                 toggle.onChange((value) => {
-                    this.updateSettings({ enableOvertime: value })
+                    this.updateSettings({ enableOvertime: value }, true)
                 })
             })
+
+        if (this._settings.enableOvertime) {
+            new Setting(containerEl)
+                .setName('Overtime Chime Interval')
+                .setDesc('Play the notification sound periodically during overtime (in minutes). Set to 0 to disable.')
+                .addText((text) => {
+                    text.setValue(this._settings.overtimeChimeInterval.toString())
+                    text.onChange((value) => {
+                        const num = parseInt(value)
+                        if (!isNaN(num) && num >= 0) {
+                            this.updateSettings({ overtimeChimeInterval: num })
+                        }
+                    })
+                })
+        }
 
         new Setting(containerEl).setHeading().setName('Notification')
 

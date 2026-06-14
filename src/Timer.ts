@@ -139,6 +139,7 @@ export default class Timer implements Readable<TimerStore> {
 
     private tick(t: number) {
         let justFinished: boolean = false
+        let playChime: boolean = false
         let pause: boolean = false
         this.update((s) => {
             if (s.running) {
@@ -149,6 +150,8 @@ export default class Timer implements Readable<TimerStore> {
                     if (prevElapsed < s.count && s.elapsed >= s.count) {
                         s.inOvertime = true
                         justFinished = true
+                    } else if (s.inOvertime) {
+                        playChime = this.shouldPlayOvertimeChime(prevElapsed, s.elapsed, s.count)
                     }
                 } else {
                     if (s.elapsed >= s.count) {
@@ -161,18 +164,38 @@ export default class Timer implements Readable<TimerStore> {
             }
             return s
         })
-        if (!pause && justFinished) {
-            const enableOvertime = this.plugin.getSettings().enableOvertime
-            if (enableOvertime) {
-                this.update((s) => {
-                    const ctx = this.createLogContext(s)
-                    this.notify(ctx, undefined, true)
-                    return s
-                })
-            } else {
-                this.timeup()
+        if (!pause) {
+            if (justFinished) {
+                const enableOvertime = this.plugin.getSettings().enableOvertime
+                if (enableOvertime) {
+                    this.update((s) => {
+                        const ctx = this.createLogContext(s)
+                        this.notify(ctx, undefined, true)
+                        return s
+                    })
+                } else {
+                    this.timeup()
+                }
+            } else if (playChime) {
+                this.playAudio()
             }
         }
+    }
+
+    private shouldPlayOvertimeChime(prevElapsed: number, currentElapsed: number, count: number): boolean {
+        const chimeInterval = this.plugin.getSettings().overtimeChimeInterval
+        if (chimeInterval <= 0) {
+            return false
+        }
+        
+        const intervalMs = chimeInterval * 60 * 1000
+        const prevOvertime = prevElapsed - count
+        const currentOvertime = currentElapsed - count
+        
+        const prevIntervalIndex = Math.floor(prevOvertime / intervalMs)
+        const currentIntervalIndex = Math.floor(currentOvertime / intervalMs)
+        
+        return currentIntervalIndex > prevIntervalIndex
     }
 
     private timeup() {
