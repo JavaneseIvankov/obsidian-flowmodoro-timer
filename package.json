@@ -25,6 +25,7 @@
 		"esbuild": "0.17.3",
 		"esbuild-svelte": "^0.8.0",
 		"find-cache-dir": "^5.0.0",
+		"moment": "^2.30.1",
 		"obsidian": "latest",
 		"prettier": "^3.0.3",
 		"prettier-plugin-svelte": "^3.0.3",

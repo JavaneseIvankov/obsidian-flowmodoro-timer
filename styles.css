@@ -38,3 +38,12 @@ If your plugin does not need CSS, delete this file.
     overflow: hidden;
     line-break: anywhere;
 }
+
+.in-overtime .circle_animation {
+    stroke: var(--text-error) !important;
+}
+
+.in-overtime .timer-text {
+    color: var(--text-error) !important;
+}
+
